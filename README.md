@@ -30,10 +30,12 @@ The necessary files must exist with the script in the same foloder:
 All of the parameters was included in the file parameter.txt. It has the following format:
 - (LINE#1) S1 S2 S3
 - (LINE#2) all/list/range
+
 If second line is 'list':
 - (LINE#3) atom number1
 - (LINE#4) atom number2
 - ...
+
 If second line is 'range':
 - (LINE#3) Axis (x/y/z)
 - (LINE#4) minium number
