@@ -382,7 +382,7 @@ def selectposcar():
 	fout.writelines('  ' + '  '.join(line7)+'\n')
 	fout.writelines('Direct\n')
 	for i in range(len(atoms)):
-		fout.writelines(readfiles('POSCAR.new.temp').readlines()[int(atoms[i]) + 8])
+		fout.writelines(readfiles('POSCAR.new.temp').readlines()[int(atoms[i]) + 7])
 	fout.close()
 	os.remove(str(os.getcwd())+'/POSCAR.new.temp')
 
