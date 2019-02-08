@@ -49,6 +49,12 @@ range
 0.5
 ```
 
+## Output
+
+Two files will be generated from the script:
+- CHGCAR.new
+- POSCAR.new
+
 ## Usage
 ```
 python SuperCharge.py
