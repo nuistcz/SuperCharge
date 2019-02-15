@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Version 2.0.1 Created by Z.Cao 8/Feb/2019
+# Version 2.0.2 Created by Z.Cao 15/Feb/2019
 import os, sys, getopt, math
 import numpy as np
 from decimal import Decimal
@@ -375,7 +375,7 @@ def selectposcar():
 	for i in range(6):
 		fout.writelines (readfiles('POSCAR.new.temp').readlines()[i])
 	sumatom = sum([int(i) for i in readfiles('POSCAR.new.temp').readlines()[6].split()])
-	factor = int(sumatom/len(atoms))
+	factor = sumatom/len(atoms)
 
 	line7 = [str(int(int(i)/factor+0.5)) for i in readfiles('POSCAR.new.temp').readlines()[6].split()]
 
