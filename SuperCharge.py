@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Version 2.0.2 Created by Z.Cao 15/Feb/2019
+# Version 2.0.3 Created by Z.Cao 21/Feb/2019
 import os, sys, getopt, math
 import numpy as np
 from decimal import Decimal
@@ -7,6 +7,7 @@ import pandas as pd
 newchgcar = []
 Mode = ''
 atoms = []
+oatoms = []
 
 def readfiles(name):
 	try:
@@ -110,14 +111,8 @@ def BaderMergeMode(para):
 	times = para[0]*para[1]*para[2]
 	# for i in atoms:
 	# 	atomtemp.append(int(int(i)/times - 0.0001) + 1)
-	compa = []
-	for k in range(int(atoms[-1])):
-		for i in range(times):
-			compa.append(k+1)
-	for i in atoms:
-		atomtemp.append(compa[int(i)-1])
 
-	for i in atomtemp:
+	for i in oatoms:
 		print ('Processing Atom #' + str(i))
 		if flag == 0:
 			potential = only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
@@ -131,7 +126,17 @@ def BaderMergeMode(para):
 	finaloutput(Nx, Ny, Nz, para[0], para[1], para[2], skiprows, readrows)
 
 def CHGCARextendMode(para):
-	potential , Nx, Ny, Nz, lattice, skiprows, readrows = read_vasp_density(str(os.getcwd()) + '/CHGCAR')
+	Upotential , Nx, Ny, Nz, lattice, skiprows, readrows = read_vasp_density(str(os.getcwd()) + '/CHGCAR')
+	flag = 0
+	for i in oatoms:
+		print ('Processing Atom #' + str(i))
+		if flag == 0:
+			potential = only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
+			flag = 1
+		else:
+			potential += only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
+
+
 	newpotential = extendarray (potential, Nx, Ny, Nz, para[0], para[1], para[2])
 	fullselectposcar()
 	outputarray (newpotential, Nx, Ny, Nz, para[0], para[1], para[2])
@@ -153,7 +158,25 @@ def getatoms(axis, minnum, maxnum):
 		for i in range(rows):
 			if Decimal(matrixs[i].split()[2]) >= minnum and Decimal(matrixs[i].split()[2]) < maxnum:
 				atoms.append(str(i+1).zfill(4))
+
+def getoatoms(axis, minnum, maxnum):
+	atomcounts = [int(i) for i in readfiles('POSCAR').readlines()[6].split()]
+	rows = sum (atomcounts)
+	matrixs = readfiles('POSCAR').readlines()[8:8+rows]
+	if axis == 'x' or axis == 'X':
+		for i in range(rows):
+			if Decimal(matrixs[i].split()[0]) >= minnum and Decimal(matrixs[i].split()[0]) < maxnum:
+				oatoms.append(str(i+1).zfill(4))
+	elif axis == 'y' or axis == 'Y':
+		for i in range(rows):
+			if Decimal(matrixs[i].split()[1]) >= minnum and Decimal(matrixs[i].split()[1]) < maxnum:
+				oatoms.append(str(i+1).zfill(4))
+	elif axis == 'z' or axis == 'Z':
+		for i in range(rows):
+			if Decimal(matrixs[i].split()[2]) >= minnum and Decimal(matrixs[i].split()[2]) < maxnum:
+				oatoms.append(str(i+1).zfill(4))
 	
+
 
 def getparameters():
 	parameter = [int(i) for i in readfiles('parameter.txt').readlines()[0].split()]
@@ -163,16 +186,19 @@ def getparameters():
 	print (Mode + ' Mode, Selected Atoms:')
 	if Mode == 'Range' or Mode == 'RANGE' or Mode == 'range':
 		getatoms(str(readfiles('parameter.txt').readlines()[2].split()[0]), Decimal(readfiles('parameter.txt').readlines()[3].split()[0]), Decimal(readfiles('parameter.txt').readlines()[4].split()[0]))
+		getoatoms(str(readfiles('parameter.txt').readlines()[2].split()[0]), Decimal(readfiles('parameter.txt').readlines()[3].split()[0]), Decimal(readfiles('parameter.txt').readlines()[4].split()[0]))
 		print (atoms)
 		BaderMergeMode(parameter)
 	elif Mode == 'All' or Mode == 'all' or Mode == 'ALL':
 		print (atoms)
 		getatoms('z',0.0,1.5)
+		getoatoms('z',0.0,1.5)
 		CHGCARextendMode(parameter)
 	elif Mode == 'list' or Mode == 'LIST' or Mode == 'List':
 		for i in range(len(readfiles('parameter.txt').readlines())-2):
 			atoms.append(readfiles('parameter.txt').readlines()[i+2].split()[0].zfill(4))
 		print (atoms)
+		print (oatoms)
 		BaderMergeMode(parameter)
 
 
