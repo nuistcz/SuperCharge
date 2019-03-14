@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Version 2.0.3 Created by Z.Cao 21/Feb/2019
+# Version 3.0.3 Created by Z.Cao 14/Mar/2019
 import os, sys, getopt, math
 import numpy as np
 from decimal import Decimal
@@ -98,48 +98,141 @@ def extendarray (array, Nx, Ny, Nz, S1, S2, S3):
 	for k in range(S3*Nz):
 		for j in range (S2*Ny):
 			for i in range (S1*Nx):
-				Nnewarray[k,j,i] = Narray [(k+Nz)%Nz , (j+Ny)%Ny , (i+Nx)%Nx]
+				Nnewarray[k,j,i] = S1*S2*S3*Narray[k%Nz, j%Ny, i%Nx]
 	newarray = Nnewarray.reshape(S1*S2*S3*Nx*Ny*Nz)
 	return newarray
 
+def getbasin(atom_count,S1,S2,S3):
+	
+	# Basin[Nz,Ny,Nx] is array to map the atom number and rho
+
+	rho, NGX, NGY, NGZ, lattice, skiprows, readrows = read_vasp_density(str(os.getcwd()) + '/BvAt0001' + '.dat')
+	counts = NGX*NGY*NGZ
+	temp = np.zeros(counts)
+	basin = np.resize(temp,(NGZ,NGY,NGX))
+	for i in range(atom_count):
+		rho_1D = only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i+1).zfill(4) + '.dat')
+		rho_3D = np.resize(rho_1D,(NGZ,NGY,NGX))
+		for kss in range(NGZ):
+			for jss in range(NGY):
+				for iss in range(NGX):
+					if rho_3D[kss,jss,iss] == 0:
+						pass
+					else:
+						if basin[kss,jss,iss] == 0:
+							basin[kss,jss,iss] = i+1
+						else:
+							print ('Bader Error: Match Failure')
+							sys.exit(10)
+	basins = getbasins(basin,NGX,NGY,NGZ,S1,S2,S3)
+	basin = np.resize(basin,NGX*NGY*NGZ)
+	""" DEBUG
+	numcount = [0,0,0,0,0,0,0,0]
+	for i in basins:
+		numcount[int(i)-1] += 1
+	print (numcount)
+
+	numcount = [0,0,0,0,0,0,0,0]
+	for i in basin:
+		numcount[int(i)-1] += 1
+	print (numcount)
+	# basins = getbasins(basin,NGX,NGY,NGZ,S1,S2,S3)
+
+	# print(basin)
+	# print(basins)
+	# ----DEBUG--------
+	# for i in range(10000):
+	# 	print ('Basin  '+str(basin[i]))
+	# 	print ('Basins '+str(basins[i]))
+	"""
+	return basins
+
+def getbasins(basin,Nx,Ny,Nz,S1,S2,S3):
+	temp = np.zeros(Nx*Ny*Nz*S1*S2*S3)
+	basins = np.resize(temp,(Nz*S3,Ny*S2,Nx*S1))
+	block = np.resize(temp,(Nz*S3,Ny*S2,Nx*S1))
+	flag = 0
+	b = 1
+	teemp = []
+
+	for kss in range(Nz*S3):
+		for jss in range(Ny*S2):
+			for iss in range(Nx*S1):
+				flag += 1
+				if (flag == Nx*Ny*Nz+1):
+					b += 1
+					flag = 1
+				# print ('Nx:{:0} Ny:{:1} Nz:{:2} flagx:{:3} flagy:{:4} flagz:{:5}'.format(Nx,Ny,Nz,flagx,flagy,flagz))
+				block[kss,jss,iss] = b
+				basins[kss,jss,iss] = int(S1*S2*S3*(basin[kss%Nz,jss%Ny,iss%Nx]-1)) + b
+
+	basins_1D = np.resize(basins,Nx*Ny*Nz*S1*S2*S3)
+
+	# numindex = []
+	# numcount = [0,0,0,0,0,0,0,0]
+	# for i in basins_1D:
+	# 	numcount[int(i)-1] += 1
+	# print (numcount)
+	return basins_1D
 
 def BaderMergeMode(para):
 	flag = 0
 	atomtemp = []
 	print ('Reading Parameter ...')
 	Upotential, Nx, Ny, Nz, lattice, skiprows, readrows = read_vasp_density(str(os.getcwd()) + '/CHGCAR')
-	times = para[0]*para[1]*para[2]
-	# for i in atoms:
-	# 	atomtemp.append(int(int(i)/times - 0.0001) + 1)
+	Ns = para[0]*para[1]*para[2]
+	basins = getbasin (skiprows-10, para[0],para[1],para[2])
 
-	for i in oatoms:
+	compa = []
+	for k in range(int(atoms[-1])):
+		for i in range(Ns):
+			compa.append(k+1)
+	for i in atoms:
+		atomtemp.append(compa[int(i)-1])
+
+	print ('Reading Bader:')
+	print (atomtemp)
+
+	for i in atomtemp:
 		print ('Processing Atom #' + str(i))
 		if flag == 0:
-			potential = only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
+			rho_temp = only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
 			flag = 1
 		else:
-			potential += only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
+			rho_temp += only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
+	rho = extendarray (rho_temp, Nx, Ny, Nz, para[0], para[1], para[2])
 
-	newpotential = extendarray (potential, Nx, Ny, Nz, para[0], para[1], para[2])
+	count1 = 0
+	count2 = 0
+	atomnum = [int(x) for x in atoms]
+	for i in range(len(rho)):
+		if basins[i] in atomnum:
+			count1 += 1
+		else:
+			rho[i] = 0
+			count2 += 1
+	print ('Selected N(rho):{:0} N(zero):{:1}'.format(count1,count2))
 	selectposcar()
-	outputarray (newpotential, Nx, Ny, Nz, para[0], para[1], para[2])
+	outputarray (rho, Nx, Ny, Nz, para[0], para[1], para[2])
 	finaloutput(Nx, Ny, Nz, para[0], para[1], para[2], skiprows, readrows)
+
 
 def CHGCARextendMode(para):
 	Upotential , Nx, Ny, Nz, lattice, skiprows, readrows = read_vasp_density(str(os.getcwd()) + '/CHGCAR')
+	Ns = para[0]*para[1]*para[2]
 	flag = 0
 	for i in oatoms:
 		print ('Processing Atom #' + str(i))
 		if flag == 0:
-			potential = only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
+			rho = only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
 			flag = 1
 		else:
-			potential += only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
+			rho += only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
 
+	rhos = extendarray (rho, Nx, Ny, Nz, para[0], para[1], para[2])
 
-	newpotential = extendarray (potential, Nx, Ny, Nz, para[0], para[1], para[2])
 	fullselectposcar()
-	outputarray (newpotential, Nx, Ny, Nz, para[0], para[1], para[2])
+	outputarray (rhos, Nx, Ny, Nz, para[0], para[1], para[2])
 	finaloutput(Nx, Ny, Nz, para[0], para[1], para[2], skiprows, readrows)
 
 def getatoms(axis, minnum, maxnum):
@@ -186,21 +279,20 @@ def getparameters():
 	print (Mode + ' Mode, Selected Atoms:')
 	if Mode == 'Range' or Mode == 'RANGE' or Mode == 'range':
 		getatoms(str(readfiles('parameter.txt').readlines()[2].split()[0]), Decimal(readfiles('parameter.txt').readlines()[3].split()[0]), Decimal(readfiles('parameter.txt').readlines()[4].split()[0]))
-		getoatoms(str(readfiles('parameter.txt').readlines()[2].split()[0]), Decimal(readfiles('parameter.txt').readlines()[3].split()[0]), Decimal(readfiles('parameter.txt').readlines()[4].split()[0]))
+		# getoatoms(str(readfiles('parameter.txt').readlines()[2].split()[0]), Decimal(readfiles('parameter.txt').readlines()[3].split()[0]), Decimal(readfiles('parameter.txt').readlines()[4].split()[0]))
 		print (atoms)
 		BaderMergeMode(parameter)
 	elif Mode == 'All' or Mode == 'all' or Mode == 'ALL':
 		print (atoms)
 		getatoms('z',0.0,1.5)
-		getoatoms('z',0.0,1.5)
+		# getoatoms('z',0.0,1.5)
 		CHGCARextendMode(parameter)
 	elif Mode == 'list' or Mode == 'LIST' or Mode == 'List':
 		for i in range(len(readfiles('parameter.txt').readlines())-2):
 			atoms.append(readfiles('parameter.txt').readlines()[i+2].split()[0].zfill(4))
 		print (atoms)
-		print (oatoms)
+		# print (oatoms)
 		BaderMergeMode(parameter)
-
 
 	return parameter
 
