@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Version 3.0.3 Created by Z.Cao 14/Mar/2019
+# Version 3.0.6 Created by Z.Cao 20/Mar/2019
 import os, sys, getopt, math
 import numpy as np
 from decimal import Decimal
@@ -10,6 +10,15 @@ atoms = []
 oatoms = []
 
 def readfiles(name):
+	"""
+	Args:
+		name (str): Name of file
+	Returns:
+		files (str): Content of file
+	Function to read the target file
+	If file exists, return the content of file
+	If not, return warning then exit the program
+	"""
 	try:
 		files = open(str(os.getcwd()) + '/' + name)
 	except:
@@ -19,14 +28,29 @@ def readfiles(name):
 
 
 def getfootercontent(skiprows, readrows, times):
+	"""
+	Args:
+		skiprows (int): The headrows number in CHGCAR
+		readrows (int): The content lines in CHGCAR
+		time (int): The Ns that equal to S1 * S2 * S3
+	Returns:
+		foot (str): The foot content of CHGCAR.new
+
+	Function to add the footer content of CHGCAR file, 
+	Contains the value of augmentation occupancies of each atom.
+	The atom should be corrspond to the atoms in the head
+	"""
+
 	CHGCAR_path = str(os.getcwd()) + '/CHGCAR'
 	foot = ''
 	count = 1
+	# Get the original footer content
 	footerlist = open(CHGCAR_path).readlines()[skiprows+readrows : len(open(CHGCAR_path).readlines())]
 	temp1 = []
 	temp2 = []
 	atomtemp = []
 	footerindex = []
+	# Spilt the original content, get the index of each atoms
 	for i, val in enumerate(footerlist):
 		if val.find('augmentation') == 0:
 				footerindex.append(i)
@@ -37,7 +61,9 @@ def getfootercontent(skiprows, readrows, times):
 		temp2.append (footerlist[footerindex[i]].split()[3])
 
 	# for i in atoms:
-	# 	atomtemp.append(int(int(i)/times - 0.0001) + 1)
+	#	 atomtemp.append(int(int(i)/times - 0.0001) + 1)
+
+	# Find the corrpsonding atoms number index
 	compa = []
 	for k in range(int(atoms[-1])):
 		for i in range(times):
@@ -50,6 +76,7 @@ def getfootercontent(skiprows, readrows, times):
 	# print (atoms)
 	# print (atomtemp)
 
+	# Add the string of footer content
 	for i in atomtemp:
 		foot += '{0} {1:>3} {2:>3}'.format('augmentation occupancies',count, int(temp2[i-1]))+'\n'
 		foot += temp1[i-1]
@@ -58,6 +85,12 @@ def getfootercontent(skiprows, readrows, times):
 
 
 def finaloutput(Nx, Ny, Nz, S1, S2, S3, skiprows, readrows):
+	"""
+	Function to write file CHGCAR.new
+	Read the atoms information from new POSCAR file
+	Read the charge density information from temporary CHGCAR file
+	Remove the temporary file 
+	"""
 	print ('Finish Calculating, Writing CHGCAR.new ...')
 	fout = open(str(os.getcwd()) + '/CHGCAR.new','w')
 	header = open(str(os.getcwd()) + '/POSCAR.new','r')
@@ -71,6 +104,9 @@ def finaloutput(Nx, Ny, Nz, S1, S2, S3, skiprows, readrows):
 	os.remove(str(os.getcwd())+'/CHGCAR.new.temp')
 
 def outputarray (array, Nx, Ny, Nz, S1, S2, S3):
+	"""
+	Function to write the charge density value in CHGCAR.new.temp
+	"""
 	print ('Calculating ...')
 	fout = open(str(os.getcwd()) + '/CHGCAR.new.temp','w')
 	header = open(str(os.getcwd()) + '/POSCAR.new','r')
@@ -98,7 +134,7 @@ def extendarray (array, Nx, Ny, Nz, S1, S2, S3):
 	for k in range(S3*Nz):
 		for j in range (S2*Ny):
 			for i in range (S1*Nx):
-				Nnewarray[k,j,i] = S1*S2*S3*Narray[k%Nz, j%Ny, i%Nx]
+				Nnewarray[k,j,i] = Narray[k%Nz, j%Ny, i%Nx]
 	newarray = Nnewarray.reshape(S1*S2*S3*Nx*Ny*Nz)
 	return newarray
 
@@ -142,12 +178,19 @@ def getbasin(atom_count,S1,S2,S3):
 	# print(basins)
 	# ----DEBUG--------
 	# for i in range(10000):
-	# 	print ('Basin  '+str(basin[i]))
-	# 	print ('Basins '+str(basins[i]))
+	#	 print ('Basin  '+str(basin[i]))
+	#	 print ('Basins '+str(basins[i]))
 	"""
 	return basins
 
 def getbasins(basin,Nx,Ny,Nz,S1,S2,S3):
+	"""
+	Args:
+		basin (numpy array): including the  
+	Returns:
+		N/A
+	Only Extend CHGCAR while mode is 'all'
+	"""
 	temp = np.zeros(Nx*Ny*Nz*S1*S2*S3)
 	basins = np.resize(temp,(Nz*S3,Ny*S2,Nx*S1))
 	block = np.resize(temp,(Nz*S3,Ny*S2,Nx*S1))
@@ -171,11 +214,19 @@ def getbasins(basin,Nx,Ny,Nz,S1,S2,S3):
 	# numindex = []
 	# numcount = [0,0,0,0,0,0,0,0]
 	# for i in basins_1D:
-	# 	numcount[int(i)-1] += 1
+	#	 numcount[int(i)-1] += 1
 	# print (numcount)
 	return basins_1D
 
 def BaderMergeMode(para):
+	"""
+	Args:
+		para (list): Na = para[0] Nb = para[1] Nc = para[2] 
+	Returns:
+		N/A
+	Extend CHGCAR from Bader while mode is 'range'
+	"""
+
 	flag = 0
 	atomtemp = []
 	print ('Reading Parameter ...')
@@ -192,9 +243,11 @@ def BaderMergeMode(para):
 
 	print ('Reading Bader:')
 	print (atomtemp)
-
+	Ns_compensation = Ns/atomtemp.count(1)
+	count = 0
 	for i in atomtemp:
-		print ('Processing Atom #' + str(i))
+		count += 1
+		print ('Processing Atom #' + str(count))
 		if flag == 0:
 			rho_temp = only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
 			flag = 1
@@ -212,30 +265,59 @@ def BaderMergeMode(para):
 			rho[i] = 0
 			count2 += 1
 	print ('Selected N(rho):{:0} N(zero):{:1}'.format(count1,count2))
+	print ('Compensation value:{:0}'.format(Ns_compensation))
+	rho *= Ns_compensation
 	selectposcar()
 	outputarray (rho, Nx, Ny, Nz, para[0], para[1], para[2])
 	finaloutput(Nx, Ny, Nz, para[0], para[1], para[2], skiprows, readrows)
 
 
 def CHGCARextendMode(para):
+	"""
+	Args:
+		para (list): Na = para[0] Nb = para[1] Nc = para[2] 
+	Returns:
+		N/A
+	Only Extend CHGCAR while mode is 'all'
+	"""
 	Upotential , Nx, Ny, Nz, lattice, skiprows, readrows = read_vasp_density(str(os.getcwd()) + '/CHGCAR')
 	Ns = para[0]*para[1]*para[2]
 	flag = 0
-	for i in oatoms:
-		print ('Processing Atom #' + str(i))
-		if flag == 0:
-			rho = only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
-			flag = 1
-		else:
-			rho += only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
+	atomtemp = []
+	rho = np.zeros(Nx*Ny*Nz)
+
+	compa = []
+	for k in range(int(atoms[-1])):
+		for i in range(Ns):
+			compa.append(k+1)
+	for i in atoms:
+		atomtemp.append(compa[int(i)-1])
+	Ns_compensation = Ns/atomtemp.count(1)
+	print ('Reading Bader:')
+	print (atomtemp)
+	count = 0
+	for i in atomtemp:
+		count += 1
+		print ('Processing Atom #' + str(count))
+		rho += only_read_vasp_density(str(os.getcwd()) + '/BvAt' + str(i).zfill(4) + '.dat')
 
 	rhos = extendarray (rho, Nx, Ny, Nz, para[0], para[1], para[2])
-
+	print ('Compensation value:{:0}'.format(Ns_compensation))
+	rho *= Ns_compensation
 	fullselectposcar()
 	outputarray (rhos, Nx, Ny, Nz, para[0], para[1], para[2])
 	finaloutput(Nx, Ny, Nz, para[0], para[1], para[2], skiprows, readrows)
 
 def getatoms(axis, minnum, maxnum):
+	"""
+	Args:
+		axis (str): 'x' or 'y' or 'z', stand for the axis to select atoms
+		minnum (demical): mininum value of the position (include minnum)
+		maxnum (demical): maxinum value of the position (exclude maxnum)
+	Returns:
+		Parameter (list): Contains the SuperCell parameter in text file.
+	Select atoms in extended POSCAR, get the final selected atom index.
+	"""
 	atomcounts = [int(i) for i in readfiles('POSCAR.new.temp').readlines()[6].split()]
 	rows = sum (atomcounts)
 	matrixs = readfiles('POSCAR.new.temp').readlines()[8:8+rows]
@@ -253,6 +335,15 @@ def getatoms(axis, minnum, maxnum):
 				atoms.append(str(i+1).zfill(4))
 
 def getoatoms(axis, minnum, maxnum):
+	"""
+	Args:
+		axis (str): 'x' or 'y' or 'z', stand for the axis to select atoms
+		minnum (demical): mininum value of the position (include minnum)
+		maxnum (demical): maxinum value of the position (exclude maxnum)
+	Returns:
+		Parameter (list): Contains the SuperCell parameter in text file.
+	Select atoms in original POSCAR, get the final selected atom index.
+	"""
 	atomcounts = [int(i) for i in readfiles('POSCAR').readlines()[6].split()]
 	rows = sum (atomcounts)
 	matrixs = readfiles('POSCAR').readlines()[8:8+rows]
@@ -272,6 +363,14 @@ def getoatoms(axis, minnum, maxnum):
 
 
 def getparameters():
+	"""
+	Args:
+		N/A
+	Returns:
+		Parameter (list): Contains the SuperCell parameter in text file.
+	
+	Entrance of the program, select atoms, indetify the modes and enter the corresponding function.
+	"""
 	parameter = [int(i) for i in readfiles('parameter.txt').readlines()[0].split()]
 	getextendposcar(parameter)
 
@@ -283,9 +382,8 @@ def getparameters():
 		print (atoms)
 		BaderMergeMode(parameter)
 	elif Mode == 'All' or Mode == 'all' or Mode == 'ALL':
-		print (atoms)
 		getatoms('z',0.0,1.5)
-		# getoatoms('z',0.0,1.5)
+		print (atoms)
 		CHGCARextendMode(parameter)
 	elif Mode == 'list' or Mode == 'LIST' or Mode == 'List':
 		for i in range(len(readfiles('parameter.txt').readlines())-2):
@@ -297,6 +395,17 @@ def getparameters():
 	return parameter
 
 def only_read_vasp_density(FILE, use_pandas=None):
+	"""
+	Args:
+		FILE (str): Path to density file
+		use_pandas (bool): Use Pandas library for faster file reading. If set
+			to None, Pandas will be used when available.
+	Returns:
+		Potential (array)
+		where Potential is a 1-D flattened array of density data with original
+		dimensions NGX x NGY x NGZ and lattice is the 3x3 unit-cell matrix.
+		
+	"""
 	if use_pandas:
 		from pandas import read_table as pandas_read_table
 	elif use_pandas is None:
@@ -351,18 +460,18 @@ def only_read_vasp_density(FILE, use_pandas=None):
 	return Potential
 
 def read_vasp_density(FILE, use_pandas=None):
-	"""Generic reading of CHGCAR LOCPOT etc files from VASP
-    Args:
-        FILE (str): Path to density file
-        use_pandas (bool): Use Pandas library for faster file reading. If set
-            to None, Pandas will be used when available.
-    Returns:
-        Potential (array), NGX (int), NGY (int), NGZ (int), lattice (array)
-        where Potential is a 1-D flattened array of density data with original
-        dimensions NGX x NGY x NGZ and lattice is the 3x3 unit-cell matrix.
-    @copyright https://github.com/WMD-group/MacroDensity/blob/master/macrodensity/density_tools.py
 	"""
-# Get Header information by reading a line at a time
+	Args:
+		FILE (str): Path to density file
+		use_pandas (bool): Use Pandas library for faster file reading. If set
+			to None, Pandas will be used when available.
+	Returns:
+		Potential (array), NGX (int), NGY (int), NGZ (int), lattice (array)
+		where Potential is a 1-D flattened array of density data with original
+		dimensions NGX x NGY x NGZ and lattice is the 3x3 unit-cell matrix.
+		
+	"""
+	# Get Header information by reading a line at a time
 
 	if use_pandas:
 		from pandas import read_table as pandas_read_table
@@ -419,6 +528,16 @@ def read_vasp_density(FILE, use_pandas=None):
 
 
 def getextendposcar(parameter, outname = 'POSCAR.new.temp'):
+	"""
+	Args:
+		parameter (list):	 Na = int(parameter[0]) Nb = int(parameter[1]) Nc = int(parameter[2])
+		outname (str): The name of the output file
+	Returns:
+		N/A
+
+	Function to get the POSCAR content from CHGCAR file
+	Contains the information of all atoms in SuperCell
+	"""
 	print ('Writing POSCAR.new ...')
 	outputpath = str(os.getcwd())+"/"+str(outname)
 	Na = int(parameter[0])
@@ -439,7 +558,7 @@ def getextendposcar(parameter, outname = 'POSCAR.new.temp'):
 		index.append(int(rows[i]))
 	totoalatoms =  sum(index)
 	newindex = [str(i*Na*Nb*Nc) for i in index]
-	line7 = "     " + "     ".join(newindex)+'\n'
+	line7 = "	 " + "	 ".join(newindex)+'\n'
 	for i in range(totoalatoms):
 		x.append(Decimal(poscar[i+8].split()[0]))
 		y.append(Decimal(poscar[i+8].split()[1]))
@@ -484,10 +603,19 @@ def getextendposcar(parameter, outname = 'POSCAR.new.temp'):
 	fout.writelines('Direct\n')
 	for i in range(len(newx)):
 		fout.writelines(' '+"{:.16f}".format(newx[i])+' '+"{:.16f}".format(newy[i])+' '+"{:.16f}".format(newz[i])+'\n')
-	# fout.writelines('     '.join(str(int(rows)*Na*Nb*Nc)))
+	# fout.writelines('	 '.join(str(int(rows)*Na*Nb*Nc)))
 	fout.close()
 
 def selectposcar():
+	"""
+	Args:
+		N/A
+	Returns:
+		N/A
+
+	Function to select the needed atom in SuperCell
+	Output POSCAR.new file
+	"""
 	poscar = open(str(os.getcwd())+"/POSCAR.new.temp")
 	fout = open(str(os.getcwd())+"/POSCAR.new", 'w')
 	for i in range(6):
@@ -505,6 +633,15 @@ def selectposcar():
 	os.remove(str(os.getcwd())+'/POSCAR.new.temp')
 
 def fullselectposcar():
+	"""
+	Args:
+		N/A
+	Returns:
+		N/A
+
+	Function to select the all atom in SuperCell
+	Output POSCAR.new file
+	"""
 	poscar = open(str(os.getcwd())+"/POSCAR.new.temp")
 	fout = open(str(os.getcwd())+"/POSCAR.new", 'w')
 	for i in readfiles('POSCAR.new.temp').readlines():
@@ -515,6 +652,14 @@ def fullselectposcar():
 
 
 def cut(line):
+	"""
+	Args:
+		line (str): Each lines contain five values in python style
+	Returns:
+		final (str): Values in VASP style
+
+	Function to transfer the number style from python to VSAP(Fortan)
+	"""
 	newline = []
 	for i in line.split():
 		if i[0] == '-':
@@ -532,6 +677,7 @@ def cut(line):
 	return final
 
 def main(argv):
+
 	outputfile_name = ''
 
 	try:
@@ -557,15 +703,16 @@ def main(argv):
 
 	#Atom_selection should be list ['0001','0002',etc.]
 	# if Atom_selection == []:
-	# 	print ("Please add -i atom-selection!")
+	#	 print ("Please add -i atom-selection!")
 	# else:
-	# 	print ("Atom selection:" + str(Atom_selection))
-	# 	if outputfile_name != '':
-	# 		check(Atom_selection)
-	# 		mergy(Atom_selection,outputfile_name)
-	# 	else:
-	# 		check(Atom_selection)
-	# 		mergy(Atom_selection)
+	#	 print ("Atom selection:" + str(Atom_selection))
+	#	 if outputfile_name != '':
+	#		 check(Atom_selection)
+	#		 mergy(Atom_selection,outputfile_name)
+	#	 else:
+	#		 check(Atom_selection)
+	#		 mergy(Atom_selection)
+
 	para = getparameters()
 
 
